@@ -1,26 +1,35 @@
 package com.chaddy50.morningcommute.view.homeScreen
 
-import android.os.Build
-import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Modifier
 import com.chaddy50.morningcommute.view.Screen
 import com.chaddy50.morningcommute.viewModel.MorningCommuteViewModel
 
 object HomeScreen : Screen {
     override val route = "home"
 
-    @RequiresApi(Build.VERSION_CODES.O)
     @Composable
     override fun Content(
         viewModel: MorningCommuteViewModel
     ) {
-        val morningCommuteForecast = viewModel.morningCommuteForecast.collectAsState()
-        val numberOfNearbyRoutes = viewModel.nextDWestboundDeparture.collectAsState()
+        val morningBusDepartureTime = viewModel.morningBusDepartureTime.collectAsState()
+        val morningBusTransferArrivalTime = viewModel.morningBusTransferArrivalTime.collectAsState()
+        val morningBusTransferDepartureTime = viewModel.morningBusTransferDepartureTime.collectAsState()
 
-        HomeView(
-            morningCommuteForecast.value,
-            numberOfNearbyRoutes.value
-        )
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            HomeView(
+                morningBusDepartureTime.value,
+                morningBusTransferArrivalTime.value,
+                morningBusTransferDepartureTime.value,
+                viewModel::refreshBusTimings,
+            )
+        }
     }
 }
