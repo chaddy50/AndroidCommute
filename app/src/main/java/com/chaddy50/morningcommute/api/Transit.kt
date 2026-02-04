@@ -5,6 +5,7 @@ import okhttp3.OkHttpClient
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.create
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -18,12 +19,12 @@ const val JUNCTION_PARK_AND_RIDE = "MMTWI:32273"
 //#endregion
 
 //#region API
-val TransitAPI = Retrofit.Builder()
+val TransitAPI: TransitService = Retrofit.Builder()
     .baseUrl("https://external.transitapp.com/")
     .addConverterFactory(GsonConverterFactory.create())
     .client(createOkHttpClient())
     .build()
-    .create(TransitService::class.java)
+    .create()
 
 interface TransitService {
     @GET("v3/public/stop_departures")

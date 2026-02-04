@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chaddy50.morningcommute.view.Screen
 import com.chaddy50.morningcommute.viewModel.MorningCommuteViewModel
 
@@ -19,6 +21,8 @@ object HomeScreen : Screen {
         val morningBusDepartureTime = viewModel.morningBusDepartureTime.collectAsState()
         val morningBusTransferArrivalTime = viewModel.morningBusTransferArrivalTime.collectAsState()
         val morningBusTransferDepartureTime = viewModel.morningBusTransferDepartureTime.collectAsState()
+        val morningCommuteWeather by viewModel.morningCommuteWeather.collectAsStateWithLifecycle()
+        val eveningCommuteWeather by viewModel.eveningCommuteWeather.collectAsStateWithLifecycle()
 
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -28,6 +32,8 @@ object HomeScreen : Screen {
                 morningBusDepartureTime.value,
                 morningBusTransferArrivalTime.value,
                 morningBusTransferDepartureTime.value,
+                morningCommuteWeather,
+                eveningCommuteWeather,
                 viewModel::refreshBusTimings,
             )
         }
