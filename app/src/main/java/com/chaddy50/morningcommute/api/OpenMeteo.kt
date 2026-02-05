@@ -19,7 +19,7 @@ suspend fun getWeatherAtTimeForLocation(
 }
 //#endregion
 
-//#region API]
+//#region API
 val OpenMeteoAPI: OpenMeteoService = Retrofit.Builder()
     .baseUrl("https://api.open-meteo.com/")
     .addConverterFactory(GsonConverterFactory.create())

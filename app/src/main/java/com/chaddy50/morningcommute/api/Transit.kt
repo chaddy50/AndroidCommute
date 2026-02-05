@@ -8,14 +8,44 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.create
 import retrofit2.http.GET
 import retrofit2.http.Query
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 //#region Constants
 const val API_KEY = "***REMOVED***"
 const val ROUTE_D = "MMTWI:244383"
 const val ROUTE_55 = "MMTWI:31664"
-const val TOKAY_AT_SOUTH_SEGOE_EASTBOUND = "MMTWI:30303"
 const val TOKAY_AT_SOUTH_SEGOE_WESTBOUND = "MMTWI:30205"
 const val JUNCTION_PARK_AND_RIDE = "MMTWI:32273"
+const val NORTHERN_LIGHTS_EPIC_STAFF_C = "MMTWI:23278"
+//#endregion
+
+//#region Public functions
+suspend fun getTripLeg(
+    routeId: String,
+    sourceStopId: String,
+    destinationStopId: String,
+    desiredDepartureTime: ZonedDateTime,
+): TripLeg? {
+    val busScheduleItem = getScheduleItemForStopAtTime(
+        routeId,
+        sourceStopId,
+        desiredDepartureTime.minusMinutes(5)
+    )
+    if (busScheduleItem == null) return null
+
+    val tripDetails = getTripDetails(
+        busScheduleItem,
+        destinationStopId
+    )
+    if (tripDetails == null) return null
+
+    return TripLeg(
+        ZonedDateTime.ofInstant(Instant.ofEpochSecond(busScheduleItem.departureTime), ZoneId.systemDefault()),
+        ZonedDateTime.ofInstant(Instant.ofEpochSecond(tripDetails.departureTime), ZoneId.systemDefault())
+    )
+}
 //#endregion
 
 //#region API
@@ -110,4 +140,59 @@ data class Stop(
     @SerializedName("departure_time") val departureTime: Long?,
     @SerializedName("arrival_time") val arrivalTime: Long?,
 )
+
+data class TripLeg(
+    val departureTime: ZonedDateTime,
+    val arrivalTime: ZonedDateTime,
+)
+//#endregion
+
+//#region Private functions
+private suspend fun getScheduleItemForStopAtTime(
+    routeId: String,
+    stopId: String,
+    time: ZonedDateTime,
+) : ScheduleItem? {
+    return try {
+        val response = TransitAPI.getDeparturesForRoute(
+            stopId,
+            true,
+            time.toEpochSecond()
+        )
+        if (!response.isSuccessful) return null
+
+        val departuresForRoute = response.body() ?: return null
+        findNextDepartureForRoute(departuresForRoute.stopDepartures, routeId)
+    } catch (_: Exception) {
+        return null
+    }
+}
+
+private fun findNextDepartureForRoute(
+    stopDepartures: List<StopDeparture>,
+    routeId: String
+): ScheduleItem? {
+    try {
+        val nextDeparture = stopDepartures.first { it.globalRouteId == routeId }
+        return nextDeparture.itineraries[0].scheduleItems[0]
+    } catch(_: NoSuchElementException) {
+        return null
+    }
+}
+
+private suspend fun getTripDetails(
+    busScheduleItem: ScheduleItem,
+    destinationStopId: String
+): ScheduleItem? {
+    return try {
+        val response = TransitAPI.getTripDetails(busScheduleItem.tripSearchKey)
+        if (!response.isSuccessful) return null
+
+        val tripDetails = response.body() ?: return null
+        tripDetails.scheduleItems.first { it.stop.globalStopId == destinationStopId }
+
+    } catch (_: Exception) {
+        return null
+    }
+}
 //#endregion

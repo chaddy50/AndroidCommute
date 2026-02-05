@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -18,9 +17,8 @@ object HomeScreen : Screen {
     override fun Content(
         viewModel: MorningCommuteViewModel
     ) {
-        val morningBusDepartureTime = viewModel.morningBusDepartureTime.collectAsState()
-        val morningBusTransferArrivalTime = viewModel.morningBusTransferArrivalTime.collectAsState()
-        val morningBusTransferDepartureTime = viewModel.morningBusTransferDepartureTime.collectAsState()
+        val morningBusFirstLeg by viewModel.morningBusFirstLeg.collectAsStateWithLifecycle()
+        val morningBusSecondLeg by viewModel.morningBusSecondLeg.collectAsStateWithLifecycle()
         val morningCommuteWeather by viewModel.morningCommuteWeather.collectAsStateWithLifecycle()
         val eveningCommuteWeather by viewModel.eveningCommuteWeather.collectAsStateWithLifecycle()
 
@@ -29,9 +27,8 @@ object HomeScreen : Screen {
             verticalArrangement = Arrangement.Center,
         ) {
             HomeView(
-                morningBusDepartureTime.value,
-                morningBusTransferArrivalTime.value,
-                morningBusTransferDepartureTime.value,
+                morningBusFirstLeg,
+                morningBusSecondLeg,
                 morningCommuteWeather,
                 eveningCommuteWeather,
                 viewModel::refreshBusTimings,
