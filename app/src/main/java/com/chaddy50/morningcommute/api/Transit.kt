@@ -14,11 +14,6 @@ import java.time.ZonedDateTime
 
 //#region Constants
 const val API_KEY = "***REMOVED***"
-const val ROUTE_D = "MMTWI:244383"
-const val ROUTE_55 = "MMTWI:31664"
-const val TOKAY_AT_SOUTH_SEGOE_WESTBOUND = "MMTWI:30205"
-const val JUNCTION_PARK_AND_RIDE = "MMTWI:32273"
-const val NORTHERN_LIGHTS_EPIC_STAFF_C = "MMTWI:23278"
 //#endregion
 
 //#region Public functions
@@ -27,11 +22,13 @@ suspend fun getTripLeg(
     sourceStopId: String,
     destinationStopId: String,
     desiredDepartureTime: ZonedDateTime,
+    directionHeadsign: String,
 ): TripLeg? {
     val busScheduleItem = getScheduleItemForStopAtTime(
         routeId,
         sourceStopId,
-        desiredDepartureTime.minusMinutes(5)
+        desiredDepartureTime.minusMinutes(5),
+        directionHeadsign,
     )
     if (busScheduleItem == null) return null
 
@@ -58,8 +55,8 @@ val TransitAPI: TransitService = Retrofit.Builder()
 
 interface TransitService {
     @GET("v3/public/stop_departures")
-    suspend fun getDeparturesForRoute(
-        @Query("global_stop_id") globalStopID: String,
+    suspend fun getDeparturesForStop(
+        @Query("global_stop_id") globalStopId: String,
         @Query("should_update_realtime") shouldUpdateRealtime: Boolean = true,
         @Query("time") time: Long,
     ): Response<StopDeparturesResponse>
@@ -152,9 +149,10 @@ private suspend fun getScheduleItemForStopAtTime(
     routeId: String,
     stopId: String,
     time: ZonedDateTime,
+    directionHeadsign: String,
 ) : ScheduleItem? {
     return try {
-        val response = TransitAPI.getDeparturesForRoute(
+        val response = TransitAPI.getDeparturesForStop(
             stopId,
             true,
             time.toEpochSecond()
@@ -162,7 +160,11 @@ private suspend fun getScheduleItemForStopAtTime(
         if (!response.isSuccessful) return null
 
         val departuresForRoute = response.body() ?: return null
-        findNextDepartureForRoute(departuresForRoute.stopDepartures, routeId)
+        findNextDepartureForRoute(
+            departuresForRoute.stopDepartures,
+            routeId,
+            directionHeadsign,
+        )
     } catch (_: Exception) {
         return null
     }
@@ -170,11 +172,13 @@ private suspend fun getScheduleItemForStopAtTime(
 
 private fun findNextDepartureForRoute(
     stopDepartures: List<StopDeparture>,
-    routeId: String
+    routeId: String,
+    directionHeadsign: String,
 ): ScheduleItem? {
     try {
         val nextDeparture = stopDepartures.first { it.globalRouteId == routeId }
-        return nextDeparture.itineraries[0].scheduleItems[0]
+        val itinerary = nextDeparture.itineraries.first { it.directionHeadsign == directionHeadsign }
+        return itinerary.scheduleItems[0]
     } catch(_: NoSuchElementException) {
         return null
     }

@@ -17,8 +17,11 @@ object HomeScreen : Screen {
     override fun Content(
         viewModel: MorningCommuteViewModel
     ) {
+        val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
         val morningBusFirstLeg by viewModel.morningBusFirstLeg.collectAsStateWithLifecycle()
         val morningBusSecondLeg by viewModel.morningBusSecondLeg.collectAsStateWithLifecycle()
+        val eveningBusFirstLeg by viewModel.eveningBusFirstLeg.collectAsStateWithLifecycle()
+        val eveningBusSecondLeg by viewModel.eveningBusSecondLeg.collectAsStateWithLifecycle()
         val morningCommuteWeather by viewModel.morningCommuteWeather.collectAsStateWithLifecycle()
         val eveningCommuteWeather by viewModel.eveningCommuteWeather.collectAsStateWithLifecycle()
 
@@ -27,11 +30,14 @@ object HomeScreen : Screen {
             verticalArrangement = Arrangement.Center,
         ) {
             HomeView(
+                isRefreshing,
                 morningBusFirstLeg,
                 morningBusSecondLeg,
+                eveningBusFirstLeg,
+                eveningBusSecondLeg,
                 morningCommuteWeather,
                 eveningCommuteWeather,
-                viewModel::refreshBusTimings,
+                viewModel::refreshData,
             )
         }
     }
