@@ -11,37 +11,28 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import com.chaddy50.morningcommute.api.TripLeg
 import com.chaddy50.morningcommute.api.WeatherAtTime
+import com.chaddy50.morningcommute.model.CommuteStatus
 import com.chaddy50.morningcommute.view.busTimingCard.BusTimingCard
 import com.chaddy50.morningcommute.view.weatherCard.WeatherCard
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeView(
     isRefreshing: Boolean,
-    morningBusFirstLeg: TripLeg?,
-    morningBusSecondLeg: TripLeg?,
-    eveningBusFirstLeg: TripLeg?,
-    eveningBusSecondLeg: TripLeg?,
+    morningCommuteStatus: CommuteStatus?,
+    eveningCommuteStatus: CommuteStatus?,
     morningCommuteWeather: WeatherAtTime?,
     eveningCommuteWeather: WeatherAtTime?,
-    refreshData: suspend () -> Unit,
+    refreshData: () -> Unit,
 ) {
     val state = rememberPullToRefreshState()
-    val coroutineScope = rememberCoroutineScope()
 
     PullToRefreshBox(
         state = state,
         isRefreshing = isRefreshing,
-        onRefresh = {
-            coroutineScope.launch {
-                refreshData()
-            }
-        }
+        onRefresh = { refreshData() }
     ) {
         Column(
             modifier = Modifier
@@ -49,8 +40,7 @@ fun HomeView(
                 .verticalScroll(rememberScrollState())
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 WeatherCard(
@@ -65,12 +55,7 @@ fun HomeView(
                 )
             }
 
-            BusTimingCard(
-                morningBusFirstLeg,
-                morningBusSecondLeg,
-                eveningBusFirstLeg,
-                eveningBusSecondLeg
-            )
+            BusTimingCard(morningCommuteStatus, eveningCommuteStatus)
         }
     }
 }

@@ -1,6 +1,9 @@
 package com.chaddy50.morningcommute.api
 
+import com.chaddy50.morningcommute.model.CommuteStatus
 import com.google.gson.annotations.SerializedName
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import okhttp3.OkHttpClient
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -11,37 +14,63 @@ import retrofit2.http.Query
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 
 //#region Constants
 const val API_KEY = "***REMOVED***"
+const val TRANSFER_BUFFER_MINUTES = 3L
 //#endregion
 
 //#region Public functions
-suspend fun getTripLeg(
-    routeId: String,
-    sourceStopId: String,
-    destinationStopId: String,
+
+/**
+ * Represents a transfer point where Bus 1 is exited and Bus 2 is boarded.
+ * These may be different stops (e.g. opposite sides of the street).
+ *
+ * @param exitStopId The stop where Bus 1 arrives — used to look up Bus 1's arrival time via trip details.
+ * @param boardingStopId The stop where Bus 2 departs — used to query Bus 2's departure time.
+ */
+data class TransferStop(
+    val exitStopId: String,
+    val boardingStopId: String,
+)
+
+suspend fun getCommuteStatus(
+    bus1RouteId: String,
+    bus1DirectionHeadsign: String,
+    bus2RouteId: String,
+    bus2DirectionHeadsign: String,
+    boardingStopId: String,
+    earlyTransfer: TransferStop,
+    preferredTransfer: TransferStop,
     desiredDepartureTime: ZonedDateTime,
-    directionHeadsign: String,
-): TripLeg? {
-    val busScheduleItem = getScheduleItemForStopAtTime(
-        routeId,
-        sourceStopId,
+): CommuteStatus {
+    // Call 1: get Bus 1 departure and trip key (must complete before calls 2/3/4)
+    val bus1Item = getScheduleItemForStopAtTime(
+        bus1RouteId,
+        boardingStopId,
         desiredDepartureTime.minusMinutes(5),
-        directionHeadsign,
-    )
-    if (busScheduleItem == null) return null
+        bus1DirectionHeadsign,
+    ) ?: return CommuteStatus.Error
 
-    val tripDetails = getTripDetails(
-        busScheduleItem,
-        destinationStopId
+    val bus1DepartureTime = ZonedDateTime.ofInstant(
+        Instant.ofEpochSecond(bus1Item.departureTime),
+        ZoneId.systemDefault()
     )
-    if (tripDetails == null) return null
 
-    return TripLeg(
-        ZonedDateTime.ofInstant(Instant.ofEpochSecond(busScheduleItem.departureTime), ZoneId.systemDefault()),
-        ZonedDateTime.ofInstant(Instant.ofEpochSecond(tripDetails.departureTime), ZoneId.systemDefault())
-    )
+    // Calls 2, 3, 4 in parallel:
+    // - Trip details to find Bus 1's arrival at both exit stops
+    // - Bus 2 departures from both boarding stops (which may differ from the exit stops)
+    val (bus1Stops, bus2AtEarlyTransfer, bus2AtPreferredTransfer) = coroutineScope {
+        val d1 = async { getStopsFromTripDetails(bus1Item.tripSearchKey, earlyTransfer.exitStopId, preferredTransfer.exitStopId) }
+        val d2 = async { getScheduleItemForStopAtTime(bus2RouteId, earlyTransfer.boardingStopId, desiredDepartureTime, bus2DirectionHeadsign) }
+        val d3 = async { getScheduleItemForStopAtTime(bus2RouteId, preferredTransfer.boardingStopId, desiredDepartureTime, bus2DirectionHeadsign) }
+        Triple(d1.await(), d2.await(), d3.await())
+    }
+
+    bus1Stops ?: return CommuteStatus.Error
+
+    return computeCommuteStatus(bus1DepartureTime, bus1Stops, bus2AtEarlyTransfer, bus2AtPreferredTransfer)
 }
 //#endregion
 
@@ -138,9 +167,9 @@ data class Stop(
     @SerializedName("arrival_time") val arrivalTime: Long?,
 )
 
-data class TripLeg(
-    val departureTime: ZonedDateTime,
-    val arrivalTime: ZonedDateTime,
+private data class Bus1StopArrivals(
+    val arrivalAtEarlyTransferStop: ZonedDateTime,
+    val arrivalAtPreferredTransferStop: ZonedDateTime,
 )
 //#endregion
 
@@ -166,7 +195,7 @@ private suspend fun getScheduleItemForStopAtTime(
             directionHeadsign,
         )
     } catch (_: Exception) {
-        return null
+        null
     }
 }
 
@@ -175,28 +204,72 @@ private fun findNextDepartureForRoute(
     routeId: String,
     directionHeadsign: String,
 ): ScheduleItem? {
-    try {
-        val nextDeparture = stopDepartures.first { it.globalRouteId == routeId }
-        val itinerary = nextDeparture.itineraries.first { it.directionHeadsign == directionHeadsign }
-        return itinerary.scheduleItems[0]
-    } catch(_: NoSuchElementException) {
-        return null
+    val nextDeparture = stopDepartures.firstOrNull { it.globalRouteId == routeId } ?: return null
+    val itinerary = nextDeparture.itineraries.firstOrNull { it.directionHeadsign == directionHeadsign } ?: return null
+    return itinerary.scheduleItems.firstOrNull()
+}
+
+private suspend fun getStopsFromTripDetails(
+    tripSearchKey: String,
+    earlyTransferExitStopId: String,
+    preferredTransferExitStopId: String,
+): Bus1StopArrivals? {
+    return try {
+        val response = TransitAPI.getTripDetails(tripSearchKey)
+        if (!response.isSuccessful) return null
+        val scheduleItems = response.body()?.scheduleItems ?: return null
+
+        val earlyTransferItem = scheduleItems.firstOrNull { it.stop.globalStopId == earlyTransferExitStopId } ?: return null
+        val preferredTransferItem = scheduleItems.firstOrNull { it.stop.globalStopId == preferredTransferExitStopId } ?: return null
+
+        Bus1StopArrivals(
+            arrivalAtEarlyTransferStop = ZonedDateTime.ofInstant(Instant.ofEpochSecond(earlyTransferItem.departureTime), ZoneId.systemDefault()),
+            arrivalAtPreferredTransferStop = ZonedDateTime.ofInstant(Instant.ofEpochSecond(preferredTransferItem.departureTime), ZoneId.systemDefault()),
+        )
+    } catch (_: Exception) {
+        null
     }
 }
 
-private suspend fun getTripDetails(
-    busScheduleItem: ScheduleItem,
-    destinationStopId: String
-): ScheduleItem? {
-    return try {
-        val response = TransitAPI.getTripDetails(busScheduleItem.tripSearchKey)
-        if (!response.isSuccessful) return null
-
-        val tripDetails = response.body() ?: return null
-        tripDetails.scheduleItems.first { it.stop.globalStopId == destinationStopId }
-
-    } catch (_: Exception) {
-        return null
+private fun computeCommuteStatus(
+    bus1DepartureTime: ZonedDateTime,
+    bus1Stops: Bus1StopArrivals,
+    bus2AtEarlyTransfer: ScheduleItem?,
+    bus2AtPreferredTransfer: ScheduleItem?,
+): CommuteStatus {
+    val bus2DeparturePreferred = bus2AtPreferredTransfer?.let {
+        ZonedDateTime.ofInstant(Instant.ofEpochSecond(it.departureTime), ZoneId.systemDefault())
     }
+    val bus2DepartureEarly = bus2AtEarlyTransfer?.let {
+        ZonedDateTime.ofInstant(Instant.ofEpochSecond(it.departureTime), ZoneId.systemDefault())
+    }
+
+    val preferredBufferMinutes = if (bus2DeparturePreferred != null) {
+        ChronoUnit.MINUTES.between(bus1Stops.arrivalAtPreferredTransferStop, bus2DeparturePreferred)
+    } else null
+
+    val earlyBufferMinutes = if (bus2DepartureEarly != null) {
+        ChronoUnit.MINUTES.between(bus1Stops.arrivalAtEarlyTransferStop, bus2DepartureEarly)
+    } else null
+
+    if (preferredBufferMinutes != null && preferredBufferMinutes >= TRANSFER_BUFFER_MINUTES) {
+        return CommuteStatus.RideToEnd(
+            bus1DepartureTime = bus1DepartureTime,
+            bus1ArrivalAtStopB = bus1Stops.arrivalAtPreferredTransferStop,
+            bus2DepartureFromStopB = bus2DeparturePreferred!!,
+            bufferMinutes = preferredBufferMinutes,
+        )
+    }
+
+    if (earlyBufferMinutes != null && earlyBufferMinutes >= TRANSFER_BUFFER_MINUTES) {
+        return CommuteStatus.ExitEarly(
+            bus1DepartureTime = bus1DepartureTime,
+            bus1ArrivalAtStopA = bus1Stops.arrivalAtEarlyTransferStop,
+            bus2DepartureFromStopA = bus2DepartureEarly!!,
+            bufferMinutes = earlyBufferMinutes,
+        )
+    }
+
+    return CommuteStatus.Missed
 }
 //#endregion

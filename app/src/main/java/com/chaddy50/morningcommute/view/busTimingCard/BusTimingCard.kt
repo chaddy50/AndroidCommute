@@ -14,17 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.chaddy50.morningcommute.api.TripLeg
+import com.chaddy50.morningcommute.model.CommuteStatus
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
 @Composable
 fun BusTimingCard(
-    morningBusFirstLeg: TripLeg?,
-    morningBusSecondLeg: TripLeg?,
-    eveningBusFirstLeg: TripLeg?,
-    eveningBusSecondLeg: TripLeg?,
+    morningCommuteStatus: CommuteStatus?,
+    eveningCommuteStatus: CommuteStatus?,
 ) {
     Column(
         modifier = Modifier
@@ -36,10 +34,10 @@ fun BusTimingCard(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (morningBusFirstLeg != null && morningBusSecondLeg != null) {
-            BusTimingInfo(morningBusFirstLeg, morningBusSecondLeg, "Morning Bus")
-        } else if (eveningBusFirstLeg != null && eveningBusSecondLeg != null) {
-            BusTimingInfo(eveningBusFirstLeg, eveningBusSecondLeg, "Evening Bus")
+        if (morningCommuteStatus != null) {
+            BusTimingInfo(morningCommuteStatus, "Morning Bus")
+        } else if (eveningCommuteStatus != null) {
+            BusTimingInfo(eveningCommuteStatus, "Evening Bus")
         } else {
             Text("No bus information available")
         }
@@ -50,28 +48,34 @@ fun BusTimingCard(
 @Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
 @Composable
 private fun NoBusInformationPreview() {
+    BusTimingCard(null, null)
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
+@Composable
+private fun RideToEndPreview() {
     BusTimingCard(
-        null,
-        null,
-        null,
-        null,
+        morningCommuteStatus = CommuteStatus.RideToEnd(
+            bus1DepartureTime = ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 7, 42), ZoneId.systemDefault()),
+            bus1ArrivalAtStopB = ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 5), ZoneId.systemDefault()),
+            bus2DepartureFromStopB = ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 12), ZoneId.systemDefault()),
+            bufferMinutes = 7,
+        ),
+        eveningCommuteStatus = null,
     )
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
 @Composable
-private fun OnTimePreview() {
+private fun ExitEarlyPreview() {
     BusTimingCard(
-        TripLeg(
-            ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 0), ZoneId.systemDefault()),
-            ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 25), ZoneId.systemDefault())
+        morningCommuteStatus = CommuteStatus.ExitEarly(
+            bus1DepartureTime = ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 7, 42), ZoneId.systemDefault()),
+            bus1ArrivalAtStopA = ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 7, 58), ZoneId.systemDefault()),
+            bus2DepartureFromStopA = ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 1), ZoneId.systemDefault()),
+            bufferMinutes = 3,
         ),
-        TripLeg(
-            ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 30), ZoneId.systemDefault()),
-            ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 50), ZoneId.systemDefault())
-        ),
-        null,
-        null,
+        eveningCommuteStatus = null,
     )
 }
 
@@ -79,16 +83,8 @@ private fun OnTimePreview() {
 @Composable
 private fun MissedPreview() {
     BusTimingCard(
-        TripLeg(
-            ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 0), ZoneId.systemDefault()),
-            ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 25), ZoneId.systemDefault())
-        ),
-        TripLeg(
-            ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 20), ZoneId.systemDefault()),
-            ZonedDateTime.of(LocalDateTime.of(2026, 1, 31, 8, 50), ZoneId.systemDefault())
-        ),
-        null,
-        null,
+        morningCommuteStatus = CommuteStatus.Missed,
+        eveningCommuteStatus = null,
     )
 }
 //#endregion

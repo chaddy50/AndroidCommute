@@ -3,73 +3,49 @@ package com.chaddy50.morningcommute.view.busTimingCard
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.chaddy50.morningcommute.api.TripLeg
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
+import com.chaddy50.morningcommute.model.CommuteStatus
 
 @Composable
-fun BusTimingInfo(
-    firstLeg: TripLeg?,
-    secondLeg: TripLeg?,
-    title: String,
-) {
-    val formatter = DateTimeFormatter.ofPattern("HH:mm")
-
+fun BusTimingInfo(status: CommuteStatus, title: String) {
     Text(title, fontWeight = FontWeight.Bold)
 
-    if (firstLeg != null && secondLeg != null) {
-
-        val isOnTimeForTransfer = firstLeg.arrivalTime.isBefore(secondLeg.departureTime)
-        val label = if (isOnTimeForTransfer) "On Time" else "Missed"
-        val color =
-            if (isOnTimeForTransfer) Color(0xFF43A047) else MaterialTheme.colorScheme.error
-
-        SuggestionChip(
-            onClick = {},
-            label = {
-                Text(label)
-            },
-            colors = SuggestionChipDefaults.suggestionChipColors(
-                containerColor = color,
-                labelColor = MaterialTheme.colorScheme.onPrimary
+    when (status) {
+        is CommuteStatus.RideToEnd -> {
+            StatusChip("Stay On Bus", Color(0xFF43A047))
+            TransferDetails(
+                bus1DepartureTime = status.bus1DepartureTime,
+                arrivalAtTransferStop = status.bus1ArrivalAtStopB,
+                transferStopLabel = "Junction at Park & Ride",
+                bus2DepartureTime = status.bus2DepartureFromStopB,
             )
-        )
+        }
 
-        if (isOnTimeForTransfer) {
-            val bufferInMinutes = ChronoUnit.MINUTES.between(
-                firstLeg.arrivalTime,
-                secondLeg.departureTime
+        is CommuteStatus.ExitEarly -> {
+            StatusChip("Get Off Early", Color(0xFFFB8C00))
+            TransferDetails(
+                bus1DepartureTime = status.bus1DepartureTime,
+                arrivalAtTransferStop = status.bus1ArrivalAtStopA,
+                transferStopLabel = "Watts at South High Point",
+                bus2DepartureTime = status.bus2DepartureFromStopA,
             )
+        }
 
-            Text(
-                text = "$bufferInMinutes minutes buffer",
-                fontSize = 24.sp,
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Catch bus at ${formatter.format(firstLeg.departureTime)}",
-            )
-
+        is CommuteStatus.Missed -> {
+            StatusChip("Missed", MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.height(8.dp))
+            Text("Catch the next bus or find another way to get to work.")
+        }
 
-            Text(
-                text = "Transfer by ${formatter.format(secondLeg.departureTime)}",
-            )
-        } else {
-            Text(
-                "Catch the next bus or find another way to get to work."
-            )
+        is CommuteStatus.Error -> {
+            StatusChip("Error", MaterialTheme.colorScheme.error)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Could not fetch bus timings. Try again in a minute.")
         }
     }
 }
