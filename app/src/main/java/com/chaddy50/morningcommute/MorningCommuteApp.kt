@@ -15,6 +15,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.ui.Modifier
 import com.chaddy50.morningcommute.ui.theme.MorningCommuteTheme
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 import com.chaddy50.morningcommute.view.homeScreen.HomeScreen
 import com.chaddy50.morningcommute.viewModel.MorningCommuteViewModel
 
@@ -28,7 +31,11 @@ class MainActivity : ComponentActivity() {
             MorningCommuteTheme {
                 Scaffold(
                     topBar = {
-                        TopAppBar({ Text("Commute") })
+                        val locale = Locale.getDefault()
+                        val commuteDate = viewModel.commuteDate
+                        val dayName = commuteDate.format(DateTimeFormatter.ofPattern("EEEE", locale))
+                        val date = commuteDate.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale))
+                        TopAppBar({ Text("$dayName, $date Commute") })
                     },
                     modifier = Modifier.fillMaxSize(),
                 ) { innerPadding ->

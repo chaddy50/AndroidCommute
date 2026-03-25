@@ -49,6 +49,7 @@ const val JUNCTION_PARK_AND_RIDE_EVENING_BOARDING = "MMTWI:32269"   // Bus 2 (Ro
 //#endregion
 
 class MorningCommuteViewModel : ViewModel() {
+    val commuteDate: LocalDate
     private val morningCommuteTime: ZonedDateTime
     private val eveningCommuteTime: ZonedDateTime
     private var lastFetchOfBusData: LocalDateTime? = null
@@ -76,6 +77,7 @@ class MorningCommuteViewModel : ViewModel() {
             val cutoffTime = LocalTime.of(17, 30)
             if (now.toLocalTime().isAfter(cutoffTime)) LocalDate.now().plusDays(1) else LocalDate.now()
         }
+        commuteDate = targetDate
         morningCommuteTime = targetDate.atTime(7, 30).atZone(ZoneId.systemDefault())
         eveningCommuteTime = targetDate.atTime(16, 45).atZone(ZoneId.systemDefault())
 
@@ -115,8 +117,8 @@ class MorningCommuteViewModel : ViewModel() {
             return
         }
 
-        val isEveningCommuteTimeWindow = true //LocalTime.now().isAfter(LocalTime.of(9, 0))
-            //&& LocalTime.now().isBefore(LocalTime.of(18, 0))
+        val isEveningCommuteTimeWindow = LocalTime.now().isAfter(LocalTime.of(9, 0))
+            && LocalTime.now().isBefore(LocalTime.of(18, 0))
 
         if (isEveningCommuteTimeWindow) {
             _eveningCommuteStatus.value = getCommuteStatus(
