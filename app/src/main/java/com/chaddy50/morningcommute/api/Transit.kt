@@ -1,5 +1,6 @@
 package com.chaddy50.morningcommute.api
 
+import com.chaddy50.morningcommute.BuildConfig
 import com.chaddy50.morningcommute.model.CommuteStatus
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.async
@@ -17,7 +18,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 //#region Constants
-const val API_KEY = "***REMOVED***"
+val API_KEY = BuildConfig.TRANSIT_API_KEY
 const val TRANSFER_BUFFER_MINUTES = 3L
 //#endregion
 
