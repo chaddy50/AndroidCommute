@@ -28,8 +28,10 @@ This app was built with [Kotlin](https://kotlinlang.org/) and [Jetpack Compose](
 
  ## Libraries Used
 [Retrofit 3](https://github.com/square/retrofit)  and [OkHttp 4](https://github.com/square/okhttp) for type-safe HTTP API calls.
+<br>
 [Gson](https://github.com/google/gson) for JSON deserialization
 
 ## External APIs
 [Transit App](https://transitapp.com/partners/apis) for real-time stop departures and trip details.
+<br>
 [Open-Meteo](https://open-meteo.com/) for hourly weather forecasts.
