@@ -1,5 +1,5 @@
 # Overview
-This Android app provides at-a-glance commute planning for a fixed daily transit route in my hometown. It displays real-time bus departure and transfer timing alongside weather forecasts for both the morning and evening commutes, letting you know at a glance whether it's a nice day for biking, and if not whether the bus is on time to make my preferred transfer.
+This Android app provides at-a-glance commute planning for a fixed daily transit route in my hometown. It displays real-time bus departure and transfer timing alongside weather forecasts for both the morning and evening commutes, letting me know at a glance whether it's a nice day for biking, and if not whether the bus is on time to make my preferred transfer.
 
 Right now, everything is hardcoded to my location and my specific bus route, but I plan to make that customizable in the future.
 
